@@ -1,0 +1,15 @@
+[Unit]
+Description=Quiz VK Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/quiz_bot
+Environment="PATH=/opt/quiz_bot/venv/bin"
+ExecStart=/opt/quiz_bot/venv/bin/python /opt/quiz_bot/vk_bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
