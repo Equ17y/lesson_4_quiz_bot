@@ -3,6 +3,7 @@ import random
 import re
 import redis
 import vk_api
+from answer_checker import extract_main_answer
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.utils import get_random_id
@@ -18,17 +19,6 @@ def get_quiz_keyboard():
     keyboard.add_line()
     keyboard.add_button('Мой счет', color=VkKeyboardColor.SECONDARY)
     return keyboard.get_keyboard()
-
-
-def extract_main_answer(text):
-    """Извлекает основную часть ответа для мягкой проверки."""
-    if not text:
-        return ""
-    text = re.sub(r'\[([^\]]+)\]', r'\1', text)
-    text = re.sub(r'\([^)]*\)', '', text)
-    if '.' in text:
-        text = text.split('.')[0]
-    return ' '.join(text.lower().split())
 
 
 def main():

@@ -2,6 +2,7 @@ import os
 import random
 import re
 import redis
+from answer_checker import extract_main_answer
 from enum import Enum
 from dotenv import load_dotenv
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
@@ -29,19 +30,6 @@ QUIZ_KEYBOARD = ReplyKeyboardMarkup(
     resize_keyboard=True,
     one_time_keyboard=False
 )
-
-
-def extract_main_answer(text):
-    """Извлекает основную часть ответа для мягкой проверки."""
-    if not text:
-        return ""
-    
-    text = re.sub(r'\[([^\]]+)\]', r'\1', text)
-    text = re.sub(r'\([^)]*\)', '', text)
-    if '.' in text:
-        text = text.split('.')[0]
-    
-    return ' '.join(text.lower().split())
 
 
 async def start(update: Update, context):
