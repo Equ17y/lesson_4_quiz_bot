@@ -42,7 +42,7 @@ def load_all_questions(questions_dir=None):
     questions_path = Path(questions_dir)
     
     if not questions_path.exists():
-        return all_questions
+        return all_questions  # Чистая функция просто возвращает пустой результат
     
     for file_path in questions_path.glob('*.txt'):
         file_questions = parse_questions(file_path)
@@ -52,22 +52,24 @@ def load_all_questions(questions_dir=None):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='Парсер вопросов для бота-викторины'
-    )
+    # Весь argparse и print живут только здесь!
+    parser = argparse.ArgumentParser(description='Парсер вопросов для бота-викторины')
     parser.add_argument(
-        '--questions-dir',
-        type=str,
-        default='questions',
+        '--questions-dir', 
+        type=str, 
+        default='questions', 
         help='Путь к папке с вопросами (по умолчанию: questions)'
     )
     args = parser.parse_args()
     
     questions = load_all_questions(args.questions_dir)
-    print(f"Всего загружено вопросов: {len(questions)}\n")
     
-    for i, (question, answer) in enumerate(questions.items()):
-        if i >= 3:
-            break
-        print(f"Вопрос: {question}")
-        print(f"Ответ: {answer}\n")
+    if not questions:
+        print(f"Ошибка: папка '{args.questions_dir}' не найдена или пуста.")
+    else:
+        print(f"Всего загружено вопросов: {len(questions)}\n")
+        for i, (question, answer) in enumerate(questions.items()):
+            if i >= 3:
+                break
+            print(f"Вопрос: {question}")
+            print(f"Ответ: {answer}\n")

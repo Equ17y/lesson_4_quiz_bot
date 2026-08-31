@@ -158,7 +158,6 @@ async def cancel(update: Update, context):
 async def post_init(application: Application):
     questions = load_all_questions()
     application.bot_data['questions'] = questions
-    print(f"Загружено вопросов: {len(questions)}")
     
     redis_client = redis.Redis(
         host=os.getenv('REDIS_HOST'),
@@ -167,7 +166,6 @@ async def post_init(application: Application):
         decode_responses=True
     )
     redis_client.ping()
-    print("Успешное подключение к Redis!")
     application.bot_data['redis_client'] = redis_client
 
 
@@ -199,6 +197,9 @@ def main():
     )
     
     application.add_handler(conv_handler)
+    questions = load_all_questions()
+    print(f"Загружено вопросов: {len(questions)}")
+    print("Успешное подключение к Redis!")
     application.run_polling()
 
 
