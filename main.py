@@ -49,9 +49,7 @@ def load_all_questions():
         return all_questions
 
     for file_path in questions_dir.glob('*.txt'):
-        # Парсим файл и получаем словарь
         file_questions = parse_questions(file_path)
-        # Метод update добавляет ключи и значения из одного словаря в другой
         all_questions.update(file_questions)
         
     return all_questions
@@ -62,7 +60,6 @@ if __name__ == '__main__':
     
     print(f"Всего загружено вопросов: {len(questions)}\n")
     
-    # Выводим первые 3 вопроса для проверки, что парсинг работает
     for i, (question, answer) in enumerate(questions.items()):
         if i >= 3:
             break
