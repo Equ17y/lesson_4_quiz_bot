@@ -3,12 +3,12 @@ import random
 import re
 import redis
 import vk_api
-from answer_checker import extract_main_answer
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.utils import get_random_id
 from dotenv import load_dotenv
 from main import load_all_questions
+from answer_checker import extract_main_answer
 
 
 def get_quiz_keyboard():
@@ -19,6 +19,94 @@ def get_quiz_keyboard():
     keyboard.add_line()
     keyboard.add_button('Мой счет', color=VkKeyboardColor.SECONDARY)
     return keyboard.get_keyboard()
+
+
+def send_message(vk, peer_id, message):
+    """Отправляет сообщение с клавиатурой."""
+    vk.messages.send(
+        peer_id=peer_id,
+        message=message,
+        keyboard=get_quiz_keyboard(),
+        random_id=get_random_id()
+    )
+
+
+def handle_new_question(vk, peer_id, questions, redis_client, user_id):
+    """Обработка кнопки 'Новый вопрос'."""
+    if not questions:
+        send_message(vk, peer_id, "Вопросы не загружены!")
+        return
+    
+    random_question = random.choice(list(questions.keys()))
+    correct_answer = questions[random_question]
+    
+    redis_client.hset(
+        name=f"user_{user_id}",
+        mapping={
+            "question": random_question,
+            "answer": correct_answer
+        }
+    )
+    
+    send_message(vk, peer_id, random_question)
+
+
+def handle_surrender(vk, peer_id, questions, redis_client, user_id):
+    """Обработка кнопки 'Сдаться'."""
+    stored_data = redis_client.hgetall(f"user_{user_id}")
+    
+    if not stored_data or "answer" not in stored_data:
+        send_message(vk, peer_id, "Вы ещё не начали вопрос!")
+        return
+    
+    correct_answer = extract_main_answer(stored_data["answer"])
+    send_message(vk, peer_id, f"Правильный ответ: {correct_answer}")
+    
+    if not questions:
+        return
+    
+    random_question = random.choice(list(questions.keys()))
+    correct_answer = questions[random_question]
+    
+    redis_client.hset(
+        name=f"user_{user_id}",
+        mapping={
+            "question": random_question,
+            "answer": correct_answer
+        }
+    )
+    
+    send_message(vk, peer_id, random_question)
+
+
+def handle_score(vk, peer_id, redis_client, user_id):
+    """Обработка кнопки 'Мой счет'."""
+    correct = int(redis_client.hget(f"user_{user_id}", "correct_answers") or 0)
+    wrong = int(redis_client.hget(f"user_{user_id}", "wrong_answers") or 0)
+    
+    message = f"Ваш счет:\nПравильных ответов: {correct}\nНеправильных ответов: {wrong}"
+    send_message(vk, peer_id, message)
+
+
+def handle_answer(vk, peer_id, user_text, redis_client, user_id):
+    """Обработка текстового ответа на вопрос."""
+    stored_data = redis_client.hgetall(f"user_{user_id}")
+    
+    if not stored_data or "answer" not in stored_data:
+        send_message(vk, peer_id, "Сначала нажмите кнопку 'Новый вопрос'!")
+        return
+    
+    correct_answer = stored_data["answer"]
+    main_answer = extract_main_answer(correct_answer)
+    normalized_user = extract_main_answer(user_text)
+    
+    if normalized_user == main_answer:
+        redis_client.hincrby(f"user_{user_id}", "correct_answers", 1)
+        redis_client.hdel(f"user_{user_id}", "question", "answer")
+        send_message(vk, peer_id, "Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»")
+    else:
+        redis_client.hincrby(f"user_{user_id}", "wrong_answers", 1)
+        send_message(vk, peer_id, "Неправильно… Попробуешь ещё раз?")            
 
 
 def main():
@@ -51,115 +139,23 @@ def main():
 
     for event in longpoll.listen():
         if event.type == VkBotEventType.MESSAGE_NEW and event.from_user:
-            user_text = event.obj.message['text'].strip()
-            user_id = event.obj.message['from_id']
-            peer_id = event.obj.message['peer_id']
-            
-            print(f"Получено от {user_id}: '{user_text}'")
-                        
-            if user_text == "Новый вопрос":
-                if questions:
-                    random_question = random.choice(list(questions.keys()))
-                    correct_answer = questions[random_question]
-                    redis_client.hset(
-                        name=f"user_{user_id}",
-                        mapping={
-                            "question": random_question,
-                            "answer": correct_answer
-                        }
-                    )
-                    
-                    vk.messages.send(
-                        peer_id=peer_id,
-                        message=random_question,
-                        keyboard=get_quiz_keyboard(),
-                        random_id=get_random_id()
-                    )
-                else:
-                    vk.messages.send(
-                        peer_id=peer_id,
-                        message="Вопросы не загружены!",
-                        keyboard=get_quiz_keyboard(),
-                        random_id=get_random_id()
-                    )
-            
-            elif user_text == "Сдаться":
-                stored_data = redis_client.hgetall(f"user_{user_id}")
-                if stored_data and "answer" in stored_data:
-                    correct_answer = extract_main_answer(stored_data["answer"])
-                    vk.messages.send(
-                        peer_id=peer_id,
-                        message=f"Правильный ответ: {correct_answer}",
-                        keyboard=get_quiz_keyboard(),
-                        random_id=get_random_id()
-                    )
-                    
-                    if questions:
-                        random_question = random.choice(list(questions.keys()))
-                        correct_answer = questions[random_question]
-                        redis_client.hset(
-                            name=f"user_{user_id}",
-                            mapping={
-                                "question": random_question,
-                                "answer": correct_answer
-                            }
-                        )
-                        vk.messages.send(
-                            peer_id=peer_id,
-                            message=random_question,
-                            keyboard=get_quiz_keyboard(),
-                            random_id=get_random_id()
-                        )
-                else:
-                    vk.messages.send(
-                        peer_id=peer_id,
-                        message="Вы ещё не начали вопрос!",
-                        keyboard=get_quiz_keyboard(),
-                        random_id=get_random_id()
-                    )
-            
-            elif user_text == "Мой счет":
-                correct = int(redis_client.hget(f"user_{user_id}", "correct_answers") or 0)
-                wrong = int(redis_client.hget(f"user_{user_id}", "wrong_answers") or 0)
-                vk.messages.send(
-                    peer_id=peer_id,
-                    message=f"Ваш счет:\nПравильных ответов: {correct}\nНеправильных ответов: {wrong}",
-                    keyboard=get_quiz_keyboard(),
-                    random_id=get_random_id()
-                )
-            
-            else:
-                stored_data = redis_client.hgetall(f"user_{user_id}")
-                if not stored_data or "answer" not in stored_data:
-                    vk.messages.send(
-                        peer_id=peer_id,
-                        message="Сначала нажмите кнопку 'Новый вопрос'!",
-                        keyboard=get_quiz_keyboard(),
-                        random_id=get_random_id()
-                    )
-                else:
-                    correct_answer = stored_data["answer"]
-                    main_answer = extract_main_answer(correct_answer)
-                    normalized_user = extract_main_answer(user_text)
-                    
-                    if normalized_user == main_answer:
-                        redis_client.hincrby(f"user_{user_id}", "correct_answers", 1)
-                        redis_client.hdel(f"user_{user_id}", "question", "answer")
-                        vk.messages.send(
-                            peer_id=peer_id,
-                            message="Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»",
-                            keyboard=get_quiz_keyboard(),
-                            random_id=get_random_id()
-                        )
-                    else:
-                        redis_client.hincrby(f"user_{user_id}", "wrong_answers", 1)
-                        vk.messages.send(
-                            peer_id=peer_id,
-                            message="Неправильно… Попробуешь ещё раз?",
-                            keyboard=get_quiz_keyboard(),
-                            random_id=get_random_id()
-                        )
+            continue
 
+        user_text = event.obj.message['text'].strip()
+        user_id = event.obj.message['from_id']
+        peer_id = event.obj.message['peer_id']
+            
+        print(f"Получено от {user_id}: '{user_text}'")
+
+        if user_text == "Новый вопрос":
+            handle_new_question(vk, peer_id, questions, redis_client, user_id)
+        elif user_text == "Сдаться":
+            handle_surrender(vk, peer_id, questions, redis_client, user_id)
+        elif user_text == "Мой счет":
+            handle_score(vk, peer_id, redis_client, user_id)
+        else:
+            handle_answer(vk, peer_id, user_text, redis_client, user_id)
+                        
 
 if __name__ == '__main__':
     main()
