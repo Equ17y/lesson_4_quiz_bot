@@ -163,6 +163,15 @@ def main():
     if not token:
         raise ValueError("Ошибка: токен TELEGRAM_BOT_TOKEN не найден в файле .env")
 
+    from telegram.request import HTTPXRequest
+    request = HTTPXRequest(
+        connection_pool_size=8,
+        connect_timeout=30.0,
+        read_timeout=30.0,
+        write_timeout=30.0,
+        pool_timeout=30.0
+    )
+
     application = Application.builder().token(token).build()
     application.post_init = post_init
     
