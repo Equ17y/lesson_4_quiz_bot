@@ -50,7 +50,7 @@ async def handle_new_question_request(update: Update, context):
         correct_answer = questions[random_question]
         
         redis_client.hset(
-            name=f"user_{user_id}", 
+            name=f"tg_user_{user_id}", 
             mapping={"question": random_question, "answer": correct_answer}
         )
         
@@ -66,7 +66,7 @@ async def handle_solution_attempt(update: Update, context):
     user_id = update.effective_user.id
     redis_client = context.bot_data.get('redis_client')
     
-    stored_data = redis_client.hgetall(f"user_{user_id}")
+    stored_data = redis_client.hgetall(f"tg_user_{user_id}")
     if not stored_data:
         await update.message.reply_text("Сначала нажмите кнопку 'Новый вопрос'!", reply_markup=QUIZ_KEYBOARD)
         return QuizState.CHOOSING
@@ -95,7 +95,7 @@ async def handle_surrender(update: Update, context):
     redis_client = context.bot_data.get('redis_client')
     questions = context.bot_data.get('questions', {})
     
-    stored_data = redis_client.hgetall(f"user_{user_id}")
+    stored_data = redis_client.hgetall(f"tg_user_{user_id}")
     
     if stored_data and "answer" in stored_data:
         correct_answer = extract_main_answer(stored_data["answer"])
@@ -114,7 +114,7 @@ async def handle_surrender(update: Update, context):
         correct_answer = questions[random_question]
         
         redis_client.hset(
-            name=f"user_{user_id}", 
+            name=f"tg_user_{user_id}", 
             mapping={
                 "question": random_question,
                 "answer": correct_answer

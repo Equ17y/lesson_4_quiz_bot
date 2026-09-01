@@ -41,7 +41,7 @@ def handle_new_question(vk, peer_id, questions, redis_client, user_id):
     correct_answer = questions[random_question]
     
     redis_client.hset(
-        name=f"user_{user_id}",
+        name=f"vk_user_{user_id}",
         mapping={
             "question": random_question,
             "answer": correct_answer
@@ -53,7 +53,7 @@ def handle_new_question(vk, peer_id, questions, redis_client, user_id):
 
 def handle_surrender(vk, peer_id, questions, redis_client, user_id):
     """Обработка кнопки 'Сдаться'."""
-    stored_data = redis_client.hgetall(f"user_{user_id}")
+    stored_data = redis_client.hgetall(f"vk_user_{user_id}")
     
     if not stored_data or "answer" not in stored_data:
         send_message(vk, peer_id, "Вы ещё не начали вопрос!")
@@ -69,7 +69,7 @@ def handle_surrender(vk, peer_id, questions, redis_client, user_id):
     correct_answer = questions[random_question]
     
     redis_client.hset(
-        name=f"user_{user_id}",
+        name=f"vk_user_{user_id}",
         mapping={
             "question": random_question,
             "answer": correct_answer
@@ -81,8 +81,8 @@ def handle_surrender(vk, peer_id, questions, redis_client, user_id):
 
 def handle_score(vk, peer_id, redis_client, user_id):
     """Обработка кнопки 'Мой счет'."""
-    correct = int(redis_client.hget(f"user_{user_id}", "correct_answers") or 0)
-    wrong = int(redis_client.hget(f"user_{user_id}", "wrong_answers") or 0)
+    correct = int(redis_client.hget(f"vk_user_{user_id}", "correct_answers") or 0)
+    wrong = int(redis_client.hget(f"vk_user_{user_id}", "wrong_answers") or 0)
     
     message = f"Ваш счет:\nПравильных ответов: {correct}\nНеправильных ответов: {wrong}"
     send_message(vk, peer_id, message)
@@ -90,7 +90,7 @@ def handle_score(vk, peer_id, redis_client, user_id):
 
 def handle_answer(vk, peer_id, user_text, redis_client, user_id):
     """Обработка текстового ответа на вопрос."""
-    stored_data = redis_client.hgetall(f"user_{user_id}")
+    stored_data = redis_client.hgetall(f"vk_user_{user_id}")
     
     if not stored_data or "answer" not in stored_data:
         send_message(vk, peer_id, "Сначала нажмите кнопку 'Новый вопрос'!")
@@ -101,11 +101,11 @@ def handle_answer(vk, peer_id, user_text, redis_client, user_id):
     normalized_user = extract_main_answer(user_text)
     
     if normalized_user == main_answer:
-        redis_client.hincrby(f"user_{user_id}", "correct_answers", 1)
-        redis_client.hdel(f"user_{user_id}", "question", "answer")
+        redis_client.hincrby(f"vk_user_{user_id}", "correct_answers", 1)
+        redis_client.hdel(f"vk_user_{user_id}", "question", "answer")
         send_message(vk, peer_id, "Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»")
     else:
-        redis_client.hincrby(f"user_{user_id}", "wrong_answers", 1)
+        redis_client.hincrby(f"vk_user_{user_id}", "wrong_answers", 1)
         send_message(vk, peer_id, "Неправильно… Попробуешь ещё раз?")            
 
 
