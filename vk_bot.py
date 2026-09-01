@@ -138,7 +138,7 @@ def main():
     print("VK бот запущен и слушает события...")
 
     for event in longpoll.listen():
-        if event.type == VkBotEventType.MESSAGE_NEW and event.from_user:
+        if event.type != VkBotEventType.MESSAGE_NEW or not event.from_user:
             continue
 
         user_text = event.obj.message['text'].strip()
